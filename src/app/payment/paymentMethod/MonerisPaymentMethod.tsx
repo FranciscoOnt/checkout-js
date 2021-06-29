@@ -1,43 +1,43 @@
 import { CardInstrument, PaymentInitializeOptions } from '@bigcommerce/checkout-sdk';
 import React, { useCallback, FunctionComponent } from 'react';
 
-import { CreditCardValidation } from '../storedInstrument';
+import { withHostedCreditCardFieldset, WithInjectedHostedCreditCardFieldsetProps } from '../hostedCreditCard';
 
 import HostedWidgetPaymentMethod, { HostedWidgetPaymentMethodProps } from './HostedWidgetPaymentMethod';
 
 export type MonerisPaymentMethodProps = Omit< HostedWidgetPaymentMethodProps, 'containerId'>;
 
-const MonerisPaymentMethod: FunctionComponent<MonerisPaymentMethodProps> = ({
+const MonerisPaymentMethod: FunctionComponent<MonerisPaymentMethodProps & WithInjectedHostedCreditCardFieldsetProps> = ({
+    getHostedFormOptions,
+    getHostedStoredCardValidationFieldset,
+    hostedStoredCardValidationSchema,
     initializePayment,
     method,
     ...rest
-  }) => {
+}) => {
 
     const containerId = `moneris-iframe-container`;
 
-    const initializeMonerisPayment = useCallback((options: PaymentInitializeOptions) => initializePayment({
+    const initializeMonerisPayment: HostedWidgetPaymentMethodProps['initializePayment'] = useCallback(async (options: PaymentInitializeOptions, selectedInstrument) => initializePayment({
         ...options,
         moneris: {
             containerId,
+            ...(selectedInstrument && { form : await getHostedFormOptions(selectedInstrument) }),
         },
-    }), [containerId, initializePayment]);
+    }), [containerId, getHostedFormOptions, initializePayment]);
 
-    const validateInstrument = (_shouldShowNumberField: boolean, selectedInstrument?: CardInstrument): React.ReactNode => {
-        const trustedShippingAddress = selectedInstrument && selectedInstrument.trustedShippingAddress;
-
-        return (<CreditCardValidation
-            shouldShowCardCodeField={ method.config && !!method.config.isVaultingCvvEnabled }
-            shouldShowNumberField={ !trustedShippingAddress }
-        />);
-    };
+    function validateInstrument(_shouldShowNumber: boolean, selectedInstrument: CardInstrument) {
+        return getHostedStoredCardValidationFieldset(selectedInstrument);
+    }
 
     return <HostedWidgetPaymentMethod
         { ...rest }
         containerId={ containerId }
         initializePayment={ initializeMonerisPayment }
         method={ method }
-        validateInstrument= { validateInstrument }
+        storedCardValidationSchema={ hostedStoredCardValidationSchema }
+        validateInstrument={ validateInstrument }
     />;
 };
 
-export default MonerisPaymentMethod;
+export default withHostedCreditCardFieldset(MonerisPaymentMethod);
