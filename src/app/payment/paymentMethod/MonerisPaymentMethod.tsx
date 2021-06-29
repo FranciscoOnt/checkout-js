@@ -1,17 +1,19 @@
 import { CardInstrument, PaymentInitializeOptions } from '@bigcommerce/checkout-sdk';
 import React, { useCallback, FunctionComponent } from 'react';
 
-import { CreditCardValidation } from '../storedInstrument';
+import { WithInjectedHostedCreditCardFieldsetProps } from '../hostedCreditCard';
 
 import HostedWidgetPaymentMethod, { HostedWidgetPaymentMethodProps } from './HostedWidgetPaymentMethod';
 
 export type MonerisPaymentMethodProps = Omit< HostedWidgetPaymentMethodProps, 'containerId'>;
 
-const MonerisPaymentMethod: FunctionComponent<MonerisPaymentMethodProps> = ({
+const MonerisPaymentMethod: FunctionComponent<MonerisPaymentMethodProps & WithInjectedHostedCreditCardFieldsetProps> = ({
+    getHostedStoredCardValidationFieldset,
+    hostedStoredCardValidationSchema,
     initializePayment,
     method,
     ...rest
-  }) => {
+}) => {
 
     const containerId = `moneris-iframe-container`;
 
@@ -22,21 +24,21 @@ const MonerisPaymentMethod: FunctionComponent<MonerisPaymentMethodProps> = ({
         },
     }), [containerId, initializePayment]);
 
-    const validateInstrument = (_shouldShowNumberField: boolean, selectedInstrument?: CardInstrument): React.ReactNode => {
-        const trustedShippingAddress = selectedInstrument && selectedInstrument.trustedShippingAddress;
+    function validateInstrument(_shouldShowNumber: boolean, selectedInstrument: CardInstrument) {
+        if (selectedInstrument && selectedInstrument.trustedShippingAddress) {
+            return;
+        }
 
-        return (<CreditCardValidation
-            shouldShowCardCodeField={ method.config && !!method.config.isVaultingCvvEnabled }
-            shouldShowNumberField={ !trustedShippingAddress }
-        />);
-    };
+        return getHostedStoredCardValidationFieldset(selectedInstrument);
+    }
 
     return <HostedWidgetPaymentMethod
         { ...rest }
         containerId={ containerId }
         initializePayment={ initializeMonerisPayment }
         method={ method }
-        validateInstrument= { validateInstrument }
+        storedCardValidationSchema={ hostedStoredCardValidationSchema }
+        validateInstrument={ validateInstrument }
     />;
 };
 
